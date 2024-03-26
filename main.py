@@ -1,4 +1,5 @@
 import time
+import json
 from selenium import webdriver
 
 from selenium.webdriver.common.by import By
@@ -16,7 +17,7 @@ RADIUS = 10000
 MAX_PRICE = 1000
 ROOMS = 3.5
 
-
+apartments = []
 
 
 def init_driver():
@@ -66,6 +67,43 @@ def search():
     search_button = driver.find_element(by=By.CSS_SELECTOR, value="button[data-cy=SearchBar_button]")
     search_button.click()
 
+def scrape():
+    apartments = []
+    apartment_elements = driver.find_elements(By.CSS_SELECTOR, 'div[role=listitem]')
+    for idx, apartment_element in enumerate(apartment_elements):
+        
+        try:
+            
+
+            price = apartment_element.find_element(By.CSS_SELECTOR, '.HgListingCard_price_JoPAs').text
+
+            location = apartment_element.find_element(By.CSS_SELECTOR, 'address').text
+
+            #living_space_info = apartment_element.find_element(By.CSS_SELECTOR, '.HgListingRoomsLivingSpace_roomsLivingSpace_GyVgq')
+            #rooms = living_space_info.find_element(By.CSS_SELECTOR, ':nth-child(1)').find_element(By.CSS_SELECTOR, 'span').text
+            #surface = living_space_info.find_element(By.CSS_SELECTOR, ':nth-child(2)').find_element(By.CSS_SELECTOR, 'span').text
+
+            rooms = apartment_element.find_element(By.CSS_SELECTOR, '.HgListingRoomsLivingSpace_roomsLivingSpace_GyVgq > :nth-child(1) > strong').text
+            surface = apartment_element.find_element(By.CSS_SELECTOR, '.HgListingRoomsLivingSpace_roomsLivingSpace_GyVgq > :nth-child(2) > strong').text
+            name = apartment_element.find_element(By.CSS_SELECTOR, '.HgListingDescription_description_r5HCO > :nth-child(1)').text
+            desc = apartment_element.find_element(By.CSS_SELECTOR, '.HgListingDescription_description_r5HCO > :nth-child(2)').text
+            
+        except Exception as e:
+            print("ERROR OCURRED DURING SCRAPING (index=" + str(idx) + "): ", e)
+        else:
+            # Add apartment data to the list
+            apartments.append({
+                'name': name,
+                'price': price,
+                'location': location,
+                'rooms': rooms,
+                'surface': surface,
+                'desc': desc
+            })
+
+    return apartments
+
+
 try:
     driver = init_driver()
 
@@ -77,8 +115,18 @@ try:
 
     search()
 
-    
+    apartments = scrape()
+
+except Exception as e:
+    print("ERROR: ", e)
+
+else:
+    with open('apartments.json', 'w') as f:
+        json.dump(apartments, f, indent=4)
 
 finally:
-    time.sleep(2)
     driver.quit()
+
+    
+
+    
