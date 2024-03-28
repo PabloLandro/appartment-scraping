@@ -1,4 +1,5 @@
-apartments.json
+*.json
+*.csv
 
 
 # Byte-compiled / optimized / DLL files

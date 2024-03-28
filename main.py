@@ -1,8 +1,13 @@
 import time
 import re
 import json
+
+import csv
 from selenium import webdriver
 
+from webdriver_manager.chrome import ChromeDriverManager
+
+from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
@@ -18,7 +23,12 @@ RADIUS = 10000
 MAX_PRICE = 1000
 ROOMS = 3.5
 
+CSV = True
+OUTPUT_FILE = 'apartments.csv'
+
 BAR_WIDTH = 40
+
+fieldnames = ['name', 'price', 'location', 'rooms', 'surface', 'desc']
 
 apartments = []
 
@@ -34,7 +44,7 @@ def init_driver():
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
     options.accept_insecure_certs = True
 
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
     driver.implicitly_wait(2)
     return driver
@@ -90,7 +100,11 @@ def scrape_apartment (apartment_element):
     except:
         pass
     try:
-        price = apartment_element.find_element(By.CSS_SELECTOR, '.HgListingCard_price_JoPAs').text
+        price_text = apartment_element.find_element(By.CSS_SELECTOR, '.HgListingCard_price_JoPAs').text
+        price = float(re.search(r'\d+', price_text).group())
+        by_month = bool(re.search(r'\bmonth\b', price_text, re.IGNORECASE))
+        if not by_month:
+            price /= 12
     except:
         pass
     try:
@@ -98,7 +112,7 @@ def scrape_apartment (apartment_element):
     except:
         pass
     try:
-        surface = apartment_element.find_element(By.CSS_SELECTOR, '.HgListingRoomsLivingSpace_roomsLivingSpace_GyVgq > :nth-child(2) > strong').text
+        surface = re.search(r'\d+', apartment_element.find_element(By.CSS_SELECTOR, '.HgListingRoomsLivingSpace_roomsLivingSpace_GyVgq > :nth-child(2) > strong').text).group()
     except:
         pass
     return {
@@ -118,7 +132,7 @@ def scrape():
     # Regex para sacar nº total de apartamentos
     print(driver.find_element(By.CSS_SELECTOR, ".searchButton .HgButton_content_RMjt_").text)
     total = int(re.search(r'\d+', driver.find_element(By.CSS_SELECTOR, ".searchButton .HgButton_content_RMjt_").text).group())
-    idx = 0    
+    idx = 0
     while True:
 
         apartment_elements = driver.find_elements(By.CSS_SELECTOR, 'div[role=listitem]')
@@ -147,6 +161,21 @@ def scrape():
     return apartments
 
 
+def dump_data(apartments):
+    if CSV:
+        with open(OUTPUT_FILE, 'w', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            
+            # Write the header (field names)
+            writer.writeheader()
+            
+            # Write the data rows
+            for apartment in apartments:
+                writer.writerow(apartment)
+    else:
+        with open(OUTPUT_FILE, 'w') as f:
+            json.dump(apartments, f, indent=4)
+
 try:
     driver = init_driver()
 
@@ -156,16 +185,17 @@ try:
     cookie_button_accept = driver.find_element(by=By.CSS_SELECTOR, value="#onetrust-accept-btn-handler")
     cookie_button_accept.click()
 
+    # Fill search filds and load list
     search()
 
+    # Extract data
     apartments = scrape()
 
 except Exception as e:
     print("ERROR: ", e)
 
 else:
-    with open('apartments.json', 'w') as f:
-        json.dump(apartments, f, indent=4)
+    dump_data(apartments)
 
 finally:
     driver.quit()
