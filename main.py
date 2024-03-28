@@ -20,7 +20,7 @@ from selenium.webdriver.chrome.options import Options
 URL = "https://www.homegate.ch/en"
 LOCATION = "Lugano"
 RADIUS = 10000
-MAX_PRICE = 1000
+MAX_PRICE = 2000
 ROOMS = 3.5
 
 CSV = True
@@ -133,6 +133,8 @@ def scrape():
     print(driver.find_element(By.CSS_SELECTOR, ".searchButton .HgButton_content_RMjt_").text)
     total = int(re.search(r'\d+', driver.find_element(By.CSS_SELECTOR, ".searchButton .HgButton_content_RMjt_").text).group())
     idx = 0
+    
+    start_time = time.time()
     while True:
 
         apartment_elements = driver.find_elements(By.CSS_SELECTOR, 'div[role=listitem]')
@@ -147,15 +149,25 @@ def scrape():
         for apartment_element in apartment_elements:
             
             apartments.append(scrape_apartment(apartment_element))
-            idx += 1
+            
+
             # Progress bar
+            idx += 1
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            mean_time = elapsed_time / idx
+            estimated_time = mean_time * (total-idx)
+            hours, remainder = divmod(estimated_time, 3600)
+            minutes, seconds = divmod(remainder, 60)
             progress = int((idx) / total * BAR_WIDTH)
             bar = '[' + '#' * progress + ' ' * (BAR_WIDTH - progress) + ']'
-            print(f'\r{bar} {idx}/{total} apartments screaped', end='', flush=True)
+            elapsed_time_formatted = "{:02}:{:02}:{:02}".format(int(hours), int(minutes), int(seconds))
+            print(f'\r{bar} {idx}/{total} apartments screaped {elapsed_time_formatted}', end='', flush=True)
 
         # Cycle to next page if there is
         if next_button is None:
             break
+        time.sleep(1)
         next_button.click()
     print()
     return apartments
@@ -192,6 +204,7 @@ try:
     apartments = scrape()
 
 except Exception as e:
+    print()
     print("ERROR: ", e)
 
 else:
