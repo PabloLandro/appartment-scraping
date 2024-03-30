@@ -23,7 +23,7 @@ from selenium.webdriver.chrome.options import Options
 
 URL = "https://www.homegate.ch/en"
 LOCATION = "Lugano"
-RADIUS = 10000
+RADIUS = 2000
 MAX_PRICE = 1000
 ROOMS = 3.5
 
@@ -162,9 +162,9 @@ def full_scrape():
     progress_bar = Progress_bar(total = total)
     while True:
 
-        apartments = driver.find_elements(By.CSS_SELECTOR, 'div[role=listitem] a')
+        apartment_elements = driver.find_elements(By.CSS_SELECTOR, 'div[role=listitem] a')
 
-        apartment_links = [ ap.get_attribute('href') for ap in apartments]
+        apartment_links = [ ap.get_attribute('href') for ap in apartment_elements]
 
         # Select the next page link if it exists
         next_link = None
@@ -179,8 +179,8 @@ def full_scrape():
             full_link = urljoin(urlparse(URL).netloc, ap_link)
 
             driver.get(full_link)
-
-            apartments.append(full_scrape_apartment(driver))
+            ap = full_scrape_apartment(driver)
+            apartments.append(ap)
             progress_bar.increment()
             
 
