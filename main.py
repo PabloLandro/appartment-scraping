@@ -84,6 +84,43 @@ def search():
     search_button = driver.find_element(by=By.CSS_SELECTOR, value="button[data-cy=SearchBar_button]")
     search_button.click()
 
+def parse_coordinates(coordinates):
+    if coordinates is None:
+        return None
+    # Regular expression pattern to match degrees, minutes, and direction
+    pattern = r"(\d+)°(\d+)'(\d+\.\d+)\"([NS]) (\d+)°(\d+)'(\d+\.\d+)\"([EW])"
+
+    # Match the pattern in the coordinates string
+    match = re.match(pattern, coordinates)
+
+    if match:
+        # Extract latitude components
+        lat_degrees = int(match.group(1))
+        lat_minutes = int(match.group(2))
+        lat_seconds = float(match.group(3))
+        lat_direction = match.group(4)
+
+        # Extract longitude components
+        lon_degrees = int(match.group(5))
+        lon_minutes = int(match.group(6))
+        lon_seconds = float(match.group(7))
+        lon_direction = match.group(8)
+
+        # Calculate latitude and longitude in decimal format
+        latitude = lat_degrees + lat_minutes / 60 + lat_seconds / 3600
+        if lat_direction == 'S':
+            latitude = -latitude
+
+        longitude = lon_degrees + lon_minutes / 60 + lon_seconds / 3600
+        if lon_direction == 'W':
+            longitude = -longitude
+
+        return {
+            lat: latitude,
+            lng: longitude
+        }
+    else:
+        return None
 
 
 def try_get_element_text(parent, selector):
@@ -141,13 +178,18 @@ def full_scrape_apartment(apartment_element):
     if surface_text is not None:
         surface = re.search(r'\d+', surface_text).group()
 
+    time.sleep(1)
+    coordinates_text = try_get_element_text(apartment_element, 'div[jstcache=19]')
+    coordinates = parse_coordinates(coordinates_text)
+
     return {
             'name': name,
             'price': price,
             'location': location,
             'rooms': rooms,
             'surface': surface,
-            'desc': desc
+            'description': desc,
+            'coordinates': coordinates
         }
 
 def full_scrape():
