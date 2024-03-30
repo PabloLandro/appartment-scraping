@@ -2,7 +2,7 @@ import time
 import re
 import json
 
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from progress_bar import Progress_bar
 
@@ -122,41 +122,25 @@ def scrape_apartment (apartment_element):
             'desc': desc
         }
 
-def full_scrape_apartment(driver):
-    name=None
-    desc=None
-    location=None
-    price=None
-    rooms=None
-    surface=None
-    latitude=None
-    longitude=None
-    floor=None
-    try:
-        name = apartment_element.find_element(By.CSS_SELECTOR, '.HgListingDescription_description_r5HCO > :nth-child(1)').text
-    except:
-        pass
-    try:
-        desc = apartment_element.find_element(By.CSS_SELECTOR, '.HgListingDescription_description_r5HCO > :nth-child(2)').text
-    except:
-        pass
-    try:
-        location = apartment_element.find_element(By.CSS_SELECTOR, 'address').text
-    except:
-        pass
-    try:
-        price_text = apartment_element.find_element(By.CSS_SELECTOR, '.HgListingCard_price_JoPAs').text
-        price = float(re.search(r'\d+', price_text).group())
-    except:
-        pass
-    try:
-        rooms = apartment_element.find_element(By.CSS_SELECTOR, '.HgListingRoomsLivingSpace_roomsLivingSpace_GyVgq > :nth-child(1) > strong').text
-    except:
-        pass
-    try:
-        surface = re.search(r'\d+', apartment_element.find_element(By.CSS_SELECTOR, '.HgListingRoomsLivingSpace_roomsLivingSpace_GyVgq > :nth-child(2) > strong').text).group()
-    except:
-        pass
+def full_scrape_apartment(apartment_element):
+    name = try_get_element_text(apartment_element, 'h1.ListingTitle_spotlightTitle_ENVSi')
+
+    desc = try_get_element_text(apartment_element, '.Description_descriptionBody_AYyuy')
+
+    location = try_get_element_text(apartment_element, '.SpotlightAttributesUsableSpace_value_cpfrh')
+
+    price_text = try_get_element_text(apartment_element, '.SpotlightAttributesPrice_value_TqKGz span')
+    price = None
+    if price is not None:
+        price = re.search(r'\d+', price_text).group()
+
+    rooms = try_get_element_text(apartment_element, '.SpotlightAttributesNumberOfRooms_value_TUMrd')
+
+    surface_text = try_get_element_text(apartment_element, '.SpotlightAttributesUsableSpace_value_cpfrh')
+    surface = None
+    if surface_text is not None:
+        surface = re.search(r'\d+', surface_text).group()
+
     return {
             'name': name,
             'price': price,
@@ -170,38 +154,40 @@ def full_scrape():
     apartments = []
     
 
-    # Regex para sacar nº total de apartamentos
-    print(driver.find_element(By.CSS_SELECTOR, ".searchButton .HgButton_content_RMjt_").text)
-    total = int(re.search(r'\d+', driver.find_element(By.CSS_SELECTOR, ".searchButton .HgButton_content_RMjt_").text).group())
+    # Regex to extract total nº of apartments
+    total_results_text = driver.find_element(By.CSS_SELECTOR, ".searchButton .HgButton_content_RMjt_").text
+    print('Found ', total_results_text)
+    total = int(re.search(r'\d+', total_results_text).group())
     
     progress_bar = Progress_bar(total = total)
     while True:
 
         apartments = driver.find_elements(By.CSS_SELECTOR, 'div[role=listitem] a')
 
-        # Select the next page button if it exists
-        next_button = None
+        apartment_links = [ ap.get_attribute('href') for ap in apartments]
+
+        # Select the next page link if it exists
+        next_link = None
         try:
             next_button = driver.find_element(By.CSS_SELECTOR, 'a[aria-label="Go to next page"]')
+            next_link = urljoin(urlparse(URL).netloc, next_button.get_attribute('href'))
         except Exception as e:
-            next_button = None
+            next_link = None
             
-        for apartment in apartments:
+        for ap_link in apartment_links:
 
-            link = urljoin(apartment.get_attribute('href'), URL)
+            full_link = urljoin(urlparse(URL).netloc, ap_link)
 
-            driver.get("")
+            driver.get(full_link)
 
             apartments.append(full_scrape_apartment(driver))
-            
             progress_bar.increment()
             
 
         # Cycle to next page if there is
-        if next_button is None:
+        if next_link is None:
             break
-        time.sleep(1)
-        next_button.click()
+        driver.get(next_link)
     print()
     return apartments
 
@@ -269,7 +255,7 @@ try:
     search()
 
     # Extract data
-    apartments = fast_scrape()
+    apartments = full_scrape()
 
 except Exception as e:
     print()
