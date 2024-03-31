@@ -27,6 +27,9 @@ RADIUS = 2000
 MAX_PRICE = 1000
 ROOMS = 3.5
 
+SLOW_MODE = True
+WAIT_TIME = 10
+
 CSV = False
 OUTPUT_FILE = 'apartments.csv'
 
@@ -227,6 +230,9 @@ def full_scrape():
 
             full_link = urljoin(urlparse(URL).netloc, ap_link)
 
+            if SLOW_MODE:
+                time.sleep(WAIT_TIME)
+
             driver.get(full_link)
             ap = full_scrape_apartment(driver)
             apartments.append(ap)
@@ -236,6 +242,8 @@ def full_scrape():
         # Cycle to next page if there is
         if next_link is None:
             break
+        if SLOW_MODE:
+            time.sleep(WAIT_TIME)
         driver.get(next_link)
     print()
     return apartments
@@ -294,17 +302,20 @@ def dump_data(apartments):
 try:
     driver = init_driver()
 
-    #driver.get(URL)
-    driver.get('https://www.homegate.ch/rent/4000852456')
+    driver.get(URL)
+
     # Accept cookies
     cookie_button_accept = driver.find_element(by=By.CSS_SELECTOR, value="#onetrust-accept-btn-handler")
     cookie_button_accept.click()
-    print(full_scrape_apartment(driver))
+
     # Fill search filds and load list
-    #search()
-    #time.sleep(30)
+    search()
+    
+    if SLOW_MODE:
+        time.sleep(WAIT_TIME)
+
     # Extract data
-    #apartments = full_scrape()
+    apartments = full_scrape()
 
 except Exception as e:
     print()
