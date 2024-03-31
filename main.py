@@ -125,10 +125,10 @@ def parse_coordinates(coordinates):
 
 def try_get_element_text(parent, selector):
     out = None
-    try:
-        out = parent.find_element(By.CSS_SELECTOR, selector).text
-    except:
-        pass
+    #try:
+    out = parent.find_element(By.CSS_SELECTOR, selector).text
+    #except:
+    #    pass
     return out
 
 def scrape_apartment (apartment_element):
@@ -178,9 +178,16 @@ def full_scrape_apartment(apartment_element):
     if surface_text is not None:
         surface = re.search(r'\d+', surface_text).group()
 
-    time.sleep(1)
-    coordinates_text = try_get_element_text(apartment_element, 'div[jstcache=19]')
-    coordinates = parse_coordinates(coordinates_text)
+    coordinates = None
+    try:
+        google_maps_link = driver.find_element(By.CSS_SELECTOR, 'iframe.AddressDetails_map_dfjua').get_attribute('src')
+        match = re.search(r"q=([-+]?\d+\.\d+),([-+]?\d+\.\d+)", google_maps_link)
+        coordinates = {
+            'lat': match.group(1),
+            'lng': match.group(2)
+        }
+    except:
+        pass
 
     return {
             'name': name,
@@ -287,17 +294,17 @@ def dump_data(apartments):
 try:
     driver = init_driver()
 
-    driver.get(URL)
-
+    #driver.get(URL)
+    driver.get('https://www.homegate.ch/rent/4000852456')
     # Accept cookies
     cookie_button_accept = driver.find_element(by=By.CSS_SELECTOR, value="#onetrust-accept-btn-handler")
     cookie_button_accept.click()
-
+    print(full_scrape_apartment(driver))
     # Fill search filds and load list
-    search()
-
+    #search()
+    #time.sleep(30)
     # Extract data
-    apartments = full_scrape()
+    #apartments = full_scrape()
 
 except Exception as e:
     print()
